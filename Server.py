@@ -57,6 +57,7 @@ class SocksProxy(StreamRequestHandler):
             return
         port = struct.unpack('!H', self.connection.recv(2))[0]
         # 响应，只支持CONNECT请求
+        logging.info('address_type = %i Request to %s' % (address_type, address))
         try:
             if cmd == 1:  # CONNECT
                 remote = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
