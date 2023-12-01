@@ -1,4 +1,6 @@
 import logging
+import ssl
+
 import select
 import socket
 import struct
@@ -15,7 +17,27 @@ class SocksProxy(StreamRequestHandler):
 
     def handle(self):
         logging.info('Accepting connection from %s:%s' % self.client_address)
+        # Wrap the connection with SSL/TLS
+        self.connection = ssl.wrap_socket(self.connection, server_side=True, keyfile="private_key.pem",
+                                          certfile="certificate.pem", ssl_version=ssl.PROTOCOL_TLS)
 
+        # Set the socket to non-blocking mode for SSL handshake
+        self.connection.setblocking(False)
+
+        # Perform the SSL/TLS handshake manually in a non-blocking way
+        while True:
+            try:
+                self.connection.do_handshake()
+                break
+            except ssl.SSLWantReadError:
+                # Wait until the socket is ready for reading
+                select.select([self.connection], [], [])
+            except ssl.SSLWantWriteError:
+                # Wait until the socket is ready for writing
+                select.select([], [self.connection], [])
+
+        # Reset the socket to blocking mode for the rest of the communication
+        self.connection.setblocking(True)
         # 协商
         # 从客户端读取并解包两个字节的数据
         header = self.connection.recv(2)
@@ -26,7 +48,7 @@ class SocksProxy(StreamRequestHandler):
         assert nmethods > 0
         # 接受支持的方法
         methods = self.get_available_methods(nmethods)
-        logging.info('methods= {}'.format(methods))
+        logging.info('methods = {}'.format(methods))
         # 检查是否支持用户名/密码认证方式，支持则优先选择
         if 2 in set(methods):
             # 发送协商响应数据包
