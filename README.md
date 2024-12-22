@@ -1,3 +1,4 @@
 # kaoProxy
-rewrite socks5 proxy
+implement shadowsocks proxy
+
 add some extra encrption
